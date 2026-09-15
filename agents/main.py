@@ -3,11 +3,16 @@ from langchain.agents import create_agent
 from langfuse.langchain import CallbackHandler # Different for other SDKs
 from langchain.tools import tool
 from tavily import TavilyClient
+from pydantic import BaseModel
 
 load_dotenv()
 
 OPEN_AI_MODEL="gpt-4o-mini"
 SYSTEM_PROMPT="You are a helpful assistant and provide answer to user query"
+
+class AnswerResponse(BaseModel):
+    answer: str
+    confidence: float
 
 langfuse_handler = CallbackHandler()
 tavily_client = TavilyClient()
@@ -18,7 +23,8 @@ def main():
     new_agent = create_agent(
         model=OPEN_AI_MODEL,
         system_prompt=SYSTEM_PROMPT,
-        tools=[search]
+        tools=[search],
+        response_format=AnswerResponse
     )
     agent_response = new_agent.invoke(
         {
@@ -29,7 +35,7 @@ def main():
         }, config = {
             "callbacks": [langfuse_handler]
         })
-    print(f"Agent Response: {agent_response}")
+    print(f"Agent Response: {agent_response['structured_response']}")
 
 
 # create tool without langchain (just a method)

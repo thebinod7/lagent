@@ -23,14 +23,14 @@ def main():
     new_agent = create_agent(
         model=OPEN_AI_MODEL,
         system_prompt=SYSTEM_PROMPT,
-        tools=[search],
+        tools=[tavily_web_search],
         response_format=AnswerResponse
     )
     agent_response = new_agent.invoke(
         {
             "messages": [{
                 "role": "user",
-                "content": "Tell me the capital of USA"
+                "content": "Tell me the GDP growth of Nepal in 2025"
             }]
         }, config = {
             "callbacks": [langfuse_handler]

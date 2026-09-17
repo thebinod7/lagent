@@ -1703,6 +1703,7 @@ dependencies = [
     { name = "langchain" },
     { name = "langchain-openai" },
     { name = "langfuse" },
+    { name = "langgraph" },
     { name = "tavily" },
 ]
 
@@ -1712,6 +1713,7 @@ requires-dist = [
     { name = "langchain", specifier = ">=1.4.0" },
     { name = "langchain-openai", specifier = ">=1.6.2" },
     { name = "langfuse", specifier = ">=4.15.2" },
+    { name = "langgraph", specifier = ">=1.2.11" },
     { name = "tavily", specifier = ">=1.1.0" },
 ]
 

@@ -38,12 +38,12 @@ def main():
     print(f"Agent Response: {agent_response['structured_response']}")
 
 
-# create tool without langchain (just a method)
+# tool without langchain decorator (just a demo tool)
 def search(query: str) -> str:
     """This tool will take query and respond for that query"""
     return f"This is a search result for {query}"
 
-# create tool with langchain decorator @tool
+# tool with langchain decorator @tool. This is also demo tool
 @tool
 def get_weather(location: str) -> str:
     """Get the current weather for a given location."""

@@ -23,7 +23,7 @@ AWS_REGION="eu-north-1"
 OPEN_AI_MODEL="gpt-4o-mini"
 
 SYSTEM_PROMPT = """
-You are a helpful assistant.
+You are a helpful assistant. Answer in one sentence.
 
 GREETING RULE (applies to EVERY final reply, including replies that follow a tool call):
 - Look through the conversation history for the user's name.
@@ -77,34 +77,40 @@ def main():
         checkpointer=checkpointer,
         middleware=[SummarizationMiddleware(
             model=OPEN_AI_MODEL,
-            trigger={"tokens": 4000}, # Trigger beyond 4000 o/p tokens
-            keep=("messages", 20) # keep 20 msg in context, others to memory
+            trigger={"tokens": 4000},
+            keep=("messages", 20)
         )],
         tools=[web_search, calculator]
     )
 
     config = {
-        "configurable":{
+        "configurable": {
             "thread_id": "john-101"
         },
         "callbacks": [langfuseHandler]
     }
-    response = agent.invoke({
-        "messages": [{
-            "role":"user",
-            "content":"What is 4+9"
-        }]
-    },config=config)
 
-    # response_2 = agent.invoke({
-    #     "messages":[{
-    #         "role": "user",
-    #         "content": "What is my name?"
-    #     }]
-    # },config=config)
+    print("Chat started. Type 'exit' or 'quit' to stop.\n")      
 
-    print(f"agent response: {response['messages'][-1].content}")
-    # print(f"agent response_2: {response_2['messages'][-1].content}")
+    while True:                                                   
+        try:                                                      
+            query = input("You: ").strip()                        
+        except (KeyboardInterrupt, EOFError):                     
+            print("\nBye!")                                       
+            break                                                 
+
+        if not query:                                             
+            continue                                             
+        if query.lower() in ("exit", "quit", "q"):               
+            print("Bye!")                                         
+            break                                               
+
+        response = agent.invoke(
+            {"messages": [{"role": "user", "content": query}]},   
+            config=config
+        )
+
+        print(f"Agent: {response['messages'][-1].content}\n")     
 
 
 if __name__ == "__main__":

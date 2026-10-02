@@ -7,7 +7,9 @@ from pydantic import BaseModel
 
 load_dotenv()
 
+SEARCH_QUERY="What is the goal of Balen Shah visiting UN general assembly?"
 OPEN_AI_MODEL="gpt-4o-mini"
+
 SYSTEM_PROMPT="You are a helpful assistant and provide answer to user query"
 
 class AnswerResponse(BaseModel):
@@ -30,7 +32,7 @@ def main():
         {
             "messages": [{
                 "role": "user",
-                "content": "Tell me the GDP growth of Nepal in 2025"
+                "content": SEARCH_QUERY
             }]
         }, config = {
             "callbacks": [langfuse_handler]

@@ -14,12 +14,26 @@ from langchain.tools import tool
 import boto3
 from langgraph_checkpoint_aws import DynamoDBSaver
 from tavily import TavilyClient
+from langchain.agents.middleware import SummarizationMiddleware
 
 load_dotenv()
 
 CHECKPOINTER_TABLE = "checkpointers"
 AWS_REGION="eu-north-1"
 OPEN_AI_MODEL="gpt-4o-mini"
+
+SYSTEM_PROMPT = """
+You are a helpful assistant.
+
+GREETING RULE (applies to EVERY final reply, including replies that follow a tool call):
+- Look through the conversation history for the user's name.
+- If you find it, start your reply with "Hi <name>,".
+- If you don't, start with "Hi Batman,".
+
+Example:
+User: What is 2+2?
+Assistant: Hi John, 2+2 is 4.
+"""
 
 
 langfuseHandler = CallbackHandler()
@@ -41,32 +55,32 @@ def web_search(query: str) -> str:
     research = tavilyClient.search(
         query=query
     )
+    return research
 
 @tool
-def calculator(expression: str) -> str:
-    """I will do calculation on given expression"""
-
-    response = calculator_agent.invoke({
-        "messages":[{
-            "role": "user",
-            "content": expression
-        }]
-    })
-
-    return response["messages"][-1].content
+def calculator(query: str) -> str:
+    """Solve math problems and calculations. Pass the full problem as plain text."""
+    result = calculator_agent.invoke(
+        {"messages": [{"role": "user", "content": query}]}
+    )
+    return result["messages"][-1].content
 
 def main():
-    dynamodb = boto3.client(
+    boto3.client(
         "dynamodb",
         region_name=AWS_REGION
     )
-    print(f"List of tables in dynamoDB {dynamodb}")
 
     agent = create_agent(
         model=OPEN_AI_MODEL,
-        system_prompt="You are helpful assistant. You help answer user query. Be polite.",
+        system_prompt=SYSTEM_PROMPT,
         checkpointer=checkpointer,
-        tools=[web_search]
+        middleware=[SummarizationMiddleware(
+            model=OPEN_AI_MODEL,
+            trigger={"tokens": 4000}, # Trigger beyond 4000 o/p tokens
+            keep=("messages", 20) # keep 20 msg in context, others to memory
+        )],
+        tools=[web_search, calculator]
     )
 
     config = {
@@ -78,19 +92,19 @@ def main():
     response = agent.invoke({
         "messages": [{
             "role":"user",
-            "content":"My name is John and I create AI related videos"
+            "content":"What is 4+9"
         }]
     },config=config)
 
-    response_2 = agent.invoke({
-        "messages":[{
-            "role": "user",
-            "content": "What is my name?"
-        }]
-    },config=config)
+    # response_2 = agent.invoke({
+    #     "messages":[{
+    #         "role": "user",
+    #         "content": "What is my name?"
+    #     }]
+    # },config=config)
 
     print(f"agent response: {response['messages'][-1].content}")
-    print(f"agent response_2: {response_2['messages'][-1].content}")
+    # print(f"agent response_2: {response_2['messages'][-1].content}")
 
 
 if __name__ == "__main__":

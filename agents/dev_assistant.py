@@ -196,6 +196,46 @@ def run_command(command: str) -> str:
             f"ERROR: {str(e)}"
         )
 
+@tool
+def search_code(query: str) -> str:
+    """
+    Search the project source code for a text pattern.
+
+    Use this tool to find where a function, class, variable,
+    error message, or other piece of code is used.
+    Returns matching files and line numbers.
+    """
+    if not query.strip():
+        return "Search query cannot be empty."
+
+    results = []
+
+    for file_path in PROJECT_ROOT.rglob("*"):
+        # Ignore directories/files we don't want to search
+        if any(part in IGNORED_NAMES for part in file_path.parts):
+            continue
+
+        if not file_path.is_file():
+            continue
+
+        try:
+            content = file_path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, PermissionError):
+            continue
+
+        for line_number, line in enumerate(content.splitlines(), start=1):
+            if query.lower() in line.lower():
+                relative_path = file_path.relative_to(PROJECT_ROOT)
+
+                results.append(
+                    f"{relative_path}:{line_number}: {line.strip()}"
+                )
+
+    if not results:
+        return f"No matches found for: {query}"
+
+    return "\n".join(results)
+
 
 def main():
     agent = create_agent(
@@ -205,7 +245,8 @@ def main():
             list_files,
             read_file,
             edit_file,
-            run_command
+            run_command,
+            search_code
         ],
     )
 

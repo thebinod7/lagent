@@ -4,15 +4,32 @@ from langfuse.langchain import CallbackHandler
 from langchain.agents import create_agent
 from langchain.tools import tool
 from pathlib import Path
+import sys
 import subprocess
 
 load_dotenv()
 
-PROJECT_ROOT = (
-    Path(__file__).resolve().parent.parent / "sample-app"
-).resolve()
+def get_project_root() -> Path:
+    if len(sys.argv) != 2:
+        print("Usage: python agent.py <project-directory>")
+        sys.exit(1)
 
-THREAD_ID="thread-coding-assistant-106"
+    project_path = Path(sys.argv[1]).expanduser().resolve()
+
+    if not project_path.exists():
+        print(f"Error: Project directory does not exist: {project_path}")
+        sys.exit(1)
+
+    if not project_path.is_dir():
+        print(f"Error: Project path is not a directory: {project_path}")
+        sys.exit(1)
+
+    return project_path
+
+PROJECT_ROOT = get_project_root()
+print(f"Dev Assistant Workspace: {PROJECT_ROOT}")
+
+THREAD_ID="thread-coding-assistant-107"
 OPEN_AI_MODEL="gpt-4o-mini"
 MAX_ITERATIONS = 10
 
@@ -347,7 +364,6 @@ def main():
         "callbacks": [langfuse_handler],
     }
 
-    print("AI Developer Assistant")
     print("Type 'exit' or 'quit' to stop.\n")
 
     while True:

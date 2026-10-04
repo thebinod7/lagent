@@ -6,6 +6,8 @@ from langchain.tools import tool
 from pathlib import Path
 import sys
 import subprocess
+import difflib
+
 
 load_dotenv()
 
@@ -31,7 +33,7 @@ print(f"Dev Assistant Workspace: {PROJECT_ROOT}")
 
 THREAD_ID="thread-coding-assistant-107"
 OPEN_AI_MODEL="gpt-4o-mini"
-MAX_ITERATIONS = 10
+MAX_ITERATIONS = 25
 
 IGNORED_NAMES = {
     ".git",
@@ -166,39 +168,96 @@ def read_file(path: str) -> str:
     except UnicodeDecodeError:
         return f"Unable to read {path}: file is not a UTF-8 text file."
 
+
+# ANSI colors
+RED = "\033[91m"
+GREEN = "\033[38;2;57;255;20m"
+YELLOW = "\033[93m"
+CYAN = "\033[96m"
+RESET = "\033[0m"
+
+
 @tool
 def edit_file(path: str, content: str) -> str:
+    """Replace the entire contents of a file with new content.
+
+    Before modifying the file:
+    - Show the proposed changes as a colored diff.
+    - Ask the user for approval.
+    - Never delete files or directories.
     """
-    Replace the entire contents of a source code file.
-
-    Use this tool only after reading the file and understanding the existing code.
-    Human approval is required before the file is modified.
-    """
-    file_path = safe_path(path)
-
-    if not file_path.exists():
-        return f"File does not exist: {path}"
-
-    if not file_path.is_file():
-        return f"Not a file: {path}"
-
-    print("\n" + "=" * 60)
-    print("⚠️  AGENT WANTS TO MODIFY A FILE")
-    print("=" * 60)
-    print(f"File: {path}")
-    print("\nApprove this change? [y/n]: ", end="")
-
-    approval = input().strip().lower()
-
-    if approval not in ("y", "yes"):
-        return "EDIT DENIED by user. Do not attempt this edit again."
 
     try:
+        file_path = safe_path(path)
+
+        # Read existing content
+        if file_path.exists():
+            if not file_path.is_file():
+                return f"EDIT FAILED: {path} is not a file."
+
+            old_content = file_path.read_text(encoding="utf-8")
+        else:
+            # New file
+            old_content = ""
+
+        # Check if anything actually changed
+        if old_content == content:
+            return f"No changes detected in {path}."
+
+        # Generate unified diff
+        diff = list(
+            difflib.unified_diff(
+                old_content.splitlines(),
+                content.splitlines(),
+                fromfile=f"a/{path}",
+                tofile=f"b/{path}",
+                lineterm="",
+            )
+        )
+
+        # Show diff
+        print("\n" + "=" * 60)
+        print(f"{CYAN}PROPOSED CHANGES{RESET}")
+        print("=" * 60)
+        print(f"File: {path}\n")
+
+        if not diff:
+            print("No differences detected.")
+        else:
+            for line in diff:
+                if line.startswith("+++") or line.startswith("---"):
+                    print(f"{YELLOW}{line}{RESET}")
+                elif line.startswith("+"):
+                    print(f"{GREEN}{line}{RESET}")
+                elif line.startswith("-"):
+                    print(f"{RED}{line}{RESET}")
+                elif line.startswith("@@"):
+                    print(f"{CYAN}{line}{RESET}")
+                else:
+                    print(line)
+
+        print("=" * 60)
+
+        # Human approval
+        print(f"\n{YELLOW}⚠️  AGENT WANTS TO MODIFY A FILE{RESET}")
+        print(f"File: {path}")
+
+        approval = input("\nApprove this change? [y/n]: ").strip().lower()
+
+        if approval not in ("y", "yes"):
+            return "EDIT DENIED by user. Do not attempt this edit again."
+
+        # Apply change
+        file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_text(content, encoding="utf-8")
-        return f"Successfully updated {path}"
+
+        return f"Successfully updated {path}."
+
+    except UnicodeDecodeError:
+        return f"EDIT FAILED: Unable to read {path} as UTF-8."
 
     except Exception as e:
-        return f"Failed to update {path}: {str(e)}"
+        return f"EDIT FAILED: {str(e)}"
 
 @tool
 def run_command(command: str) -> str:

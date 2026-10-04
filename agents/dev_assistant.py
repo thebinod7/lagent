@@ -46,6 +46,15 @@ IGNORED_NAMES = {
     "build",
 }
 
+BLOCKED_COMMANDS = [
+    "rm",
+    "rmdir",
+    "unlink",
+    "del",
+    "erase",
+    "Remove-Item",
+]
+
 SYSTEM_PROMPT = """
 You are a coding agent working on a local software project.
 
@@ -196,7 +205,17 @@ def run_command(command: str) -> str:
     """
     Run a command inside the project directory.
     Use this to run tests, linting, builds, or other project checks.
+    Commands that can delete files or directories are not allowed.
     """
+    command_lower = command.lower()
+
+    for blocked in BLOCKED_COMMANDS:
+        if blocked in command_lower:
+            return (
+                f"COMMAND BLOCKED: '{blocked}' operations are not allowed. "
+                "The agent is never allowed to delete files or directories."
+            )
+
     try:
         result = subprocess.run(
             command,

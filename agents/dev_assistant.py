@@ -35,6 +35,19 @@ You are a coding agent working on a local software project.
 The project workspace is provided through your tools.
 Always inspect the project before deciding how to test it.
 
+Before performing a coding task, use analyze_repo when you need
+to understand the project's language, framework, package manager,
+or testing framework.
+
+Use analyze_repo especially when:
+- the project structure is unfamiliar
+- you need to determine how tests should be run
+- you need to determine the appropriate build/lint command
+- you need to understand the project's technology stack
+
+Do not call analyze_repo repeatedly if the repository context
+is already known.
+
 When asked to fix a bug or failing test:
 
 1. Use list_files to inspect the project.
@@ -236,12 +249,89 @@ def search_code(query: str) -> str:
 
     return "\n".join(results)
 
+@tool
+def analyze_repo() -> str:
+    """
+    Analyze the project repository and identify its language,
+    framework, package manager, and likely test commands.
+    Use this before making decisions about how to inspect,
+    test, or modify the project.
+    """
+
+    files = {
+        file.name
+        for file in PROJECT_ROOT.rglob("*")
+        if file.is_file()
+        and not any(part in IGNORED_NAMES for part in file.parts)
+    }
+
+    result = []
+
+    # Language detection
+    languages = []
+
+    if any(file.endswith(".py") for file in files):
+        languages.append("Python")
+
+    if any(
+        file.endswith((".js", ".jsx", ".ts", ".tsx"))
+        for file in files
+    ):
+        languages.append("JavaScript/TypeScript")
+
+    if languages:
+        result.append(f"Languages: {', '.join(languages)}")
+
+    # Package manager / project files
+    if "package.json" in files:
+        package_manager = "npm"
+
+        if "pnpm-lock.yaml" in files:
+            package_manager = "pnpm"
+        elif "yarn.lock" in files:
+            package_manager = "yarn"
+        elif "package-lock.json" in files:
+            package_manager = "npm"
+
+        result.append(f"Package manager: {package_manager}")
+
+    if "requirements.txt" in files:
+        result.append("Python dependency file: requirements.txt")
+
+    if "pyproject.toml" in files:
+        result.append("Python project configuration: pyproject.toml")
+
+    # Test framework detection
+    if (
+        "pytest.ini" in files
+        or "pytest.ini" in files
+        or "pyproject.toml" in files
+    ):
+        result.append("Possible Python test framework: pytest")
+
+    if "package.json" in files:
+        result.append(
+            "JavaScript/TypeScript tests may be configured in package.json"
+        )
+
+    if "jest.config.js" in files or "jest.config.ts" in files:
+        result.append("Test framework: Jest")
+
+    if "vitest.config.ts" in files:
+        result.append("Test framework: Vitest")
+
+    if not result:
+        return "Could not determine project information."
+
+    return "\n".join(result)
+
 
 def main():
     agent = create_agent(
         model=OPEN_AI_MODEL,
         system_prompt=SYSTEM_PROMPT,
         tools=[
+            analyze_repo,
             list_files,
             read_file,
             edit_file,

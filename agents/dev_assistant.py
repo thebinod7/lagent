@@ -12,8 +12,9 @@ PROJECT_ROOT = (
     Path(__file__).resolve().parent.parent / "sample-app"
 ).resolve()
 
-THREAD_ID="thread-coding-assistant-105"
+THREAD_ID="thread-coding-assistant-106"
 OPEN_AI_MODEL="gpt-4o-mini"
+MAX_ITERATIONS = 10
 
 IGNORED_NAMES = {
     ".git",
@@ -132,7 +133,7 @@ def edit_file(path: str, content: str) -> str:
     Replace the entire contents of a source code file.
 
     Use this tool only after reading the file and understanding the existing code.
-    Path must be relative to the project root.
+    Human approval is required before the file is modified.
     """
     file_path = safe_path(path)
 
@@ -142,9 +143,21 @@ def edit_file(path: str, content: str) -> str:
     if not file_path.is_file():
         return f"Not a file: {path}"
 
+    print("\n" + "=" * 60)
+    print("⚠️  AGENT WANTS TO MODIFY A FILE")
+    print("=" * 60)
+    print(f"File: {path}")
+    print("\nApprove this change? [y/n]: ", end="")
+
+    approval = input().strip().lower()
+
+    if approval not in ("y", "yes"):
+        return "EDIT DENIED by user. Do not attempt this edit again."
+
     try:
         file_path.write_text(content, encoding="utf-8")
         return f"Successfully updated {path}"
+
     except Exception as e:
         return f"Failed to update {path}: {str(e)}"
 
@@ -231,7 +244,10 @@ def main():
                         }
                     ]
                 },
-                config=config,
+                config={
+                    **config,
+                    "recursion_limit": MAX_ITERATIONS,
+                }
             )
 
             print(
